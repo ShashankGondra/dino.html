@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dino Game</title>
+    <style>
+        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f7f7f7; }
+        #gameCanvas { border: 1px solid #000; background: #fff; }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let dino = { x: 50, y: 300, width: 40, height: 40, dy: 0, gravity: 0.8, jumpPower: -15, isJumping: false };
+        let obstacles = [];
+        let ground = { x: 0, y: 340, width: canvas.width * 2, height: 10, speed: 5 };
+        let score = 0, gameSpeed = 5, frame = 0;
+        let dinoFrames = [{ x: 0, y: 0, width: 40, height: 40 }, { x: 40, y: 0, width: 40, height: 40 }];
+        let currentFrame = 0;
+
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && !dino.isJumping) {
+                dino.dy = dino.jumpPower;
+                dino.isJumping = true;
+            }
+        });
+
+        class Obstacle {
+            constructor() { this.x = canvas.width; this.y = 300; this.width = 20; this.height = 40; this.speed = gameSpeed; }
+            draw() { ctx.fillStyle = '#000'; ctx.fillRect(this.x, this.y, this.width, this.height); }
+            update() { this.x -= this.speed; }
+        }
+
+        function spawnObstacle() { if (frame % 100 === 0) obstacles.push(new Obstacle()); }
+
+        function checkCollision(dino, obstacle) {
+            return (dino.x < obstacle.x + obstacle.width && dino.x + dino.width > obstacle.x &&
+                    dino.y < obstacle.y + obstacle.height && dino.y + dino.height > obstacle.y);
+        }
+
+        function update() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            dino.dy += dino.gravity;
+            dino.y += dino.dy;
+            if (dino.y >= 300) { dino.y = 300; dino.dy = 0; dino.isJumping = false; }
+
+            if (frame % 10 === 0 && !dino.isJumping) currentFrame = (currentFrame + 1) % 2;
+            ctx.fillStyle = '#000';
+            ctx.fillRect(dino.x, dino.y, dinoFrames[currentFrame].width, dinoFrames[currentFrame].height);
+
+            ctx.fillStyle = '#666';
+            ground.x -= ground.speed;
+            if (ground.x <= -canvas.width) ground.x = 0;
+            ctx.fillRect(ground.x, ground.y, ground.width, ground.height);
+            ctx.fillRect(ground.x + canvas.width, ground.y, ground.width, ground.height);
+
+            spawnObstacle();
+            obstacles.forEach((obstacle, index) => {
+                obstacle.update();
+                obstacle.draw();
+                if (checkCollision(dino, obstacle)) {
+                    alert(`Game Over! Score: ${score}`);
+                    obstacles = [];
+                    score = 0;
+                    gameSpeed = 5;
+                    return;
+                }
+                if (obstacle.x + obstacle.width < 0) {
+                    obstacles.splice(index, 1);
+                    score++;
+                    if (score % 10 === 0) gameSpeed += 0.5;
+                }
+            });
+
+            ctx.fillStyle = '#000';
+            ctx.font = '20px Arial';
+            ctx.fillText(`Score: ${score}`, 10, 30);
+
+            frame++;
+            requestAnimationFrame(update);
+        }
+
+        update();
+    </script>
+</body>
+</html>
