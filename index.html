@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Dino Game</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dog Treat Game - Touch Enabled</title>
     <style>
         body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f7f7f7; }
         #gameCanvas { border: 1px solid #000; background: #fff; }
@@ -14,19 +15,44 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        let dino = { x: 50, y: 300, width: 40, height: 40, dy: 0, gravity: 0.8, jumpPower: -15, isJumping: false };
+        let dog = { x: 50, y: 300, width: 40, height: 40, dy: 0, gravity: 0.8, jumpPower: -18, isJumping: false }; // Boosted jumpPower
         let obstacles = [];
+        let treats = [];
         let ground = { x: 0, y: 340, width: canvas.width * 2, height: 10, speed: 5 };
-        let score = 0, gameSpeed = 5, frame = 0;
-        let dinoFrames = [{ x: 0, y: 0, width: 40, height: 40 }, { x: 40, y: 0, width: 40, height: 40 }];
-        let currentFrame = 0;
+        let treatCount = 0, gameSpeed = 5, frame = 0;
+        let legFrame = 0;
+        let treatMessage = { text: '', alpha: 0, timer: 0 };
+        let obstacleCooldown = 0;
 
-        document.addEventListener('keydown', (e) => {
-            if (e.code === 'Space' && !dino.isJumping) {
-                dino.dy = dino.jumpPower;
-                dino.isJumping = true;
+        // Draw Dog
+        function drawDog(x, y, jumping) {
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.fillRect(x + 10, y + 15, 20, 15); // Body
+            ctx.fillRect(x + 25, y + 5, 15, 10);  // Head
+            ctx.fillRect(x + 35, y, 5, 5);        // Ear
+            if (!jumping && frame % 10 === 0) legFrame = (legFrame + 1) % 2;
+            if (legFrame === 0 || jumping) {
+                ctx.fillRect(x, y + 15, 10, 5);   // Tail down
+                ctx.fillRect(x + 10, y + 30, 5, 10); // Front leg
+                ctx.fillRect(x + 25, y + 30, 5, 10); // Back leg
+            } else {
+                ctx.fillRect(x, y + 10, 10, 5);   // Tail up
+                ctx.fillRect(x + 15, y + 30, 5, 10); // Front leg forward
+                ctx.fillRect(x + 20, y + 30, 5, 10); // Back leg back
             }
-        });
+            ctx.closePath();
+        }
+
+        function jump() {
+            if (!dog.isJumping) {
+                dog.dy = dog.jumpPower;
+                dog.isJumping = true;
+            }
+        }
+
+        document.addEventListener('keydown', (e) => { if (e.code === 'Space') jump(); });
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); jump(); });
 
         class Obstacle {
             constructor() { this.x = canvas.width; this.y = 300; this.width = 20; this.height = 40; this.speed = gameSpeed; }
@@ -34,23 +60,62 @@
             update() { this.x -= this.speed; }
         }
 
-        function spawnObstacle() { if (frame % 100 === 0) obstacles.push(new Obstacle()); }
+        class Treat {
+            constructor() {
+                this.x = canvas.width + Math.random() * 200;
+                this.y = 260;
+                this.width = 20;
+                this.height = 20;
+                this.speed = gameSpeed;
+            }
+            draw() {
+                ctx.fillStyle = '#000';
+                ctx.font = '20px Arial';
+                ctx.fillText('🍗', this.x, this.y + 15);
+            }
+            update() { this.x -= this.speed; }
+        }
 
-        function checkCollision(dino, obstacle) {
-            return (dino.x < obstacle.x + obstacle.width && dino.x + dino.width > obstacle.x &&
-                    dino.y < obstacle.y + obstacle.height && dino.y + dino.height > obstacle.y);
+        function spawnObstacle() {
+            if (frame % 100 === 0 && obstacleCooldown <= 0) {
+                obstacles.push(new Obstacle());
+                obstacleCooldown = 40;
+            }
+            if (obstacleCooldown > 0) obstacleCooldown--;
+        }
+
+        function spawnTreat() {
+            if (frame % 150 === 0) {
+                let newTreat = new Treat();
+                let overlap = obstacles.some(obstacle => 
+                    Math.abs(newTreat.x - obstacle.x) < 100);
+                if (!overlap) treats.push(newTreat);
+            }
+        }
+
+        function checkCollision(obj1, obj2) {
+            return (obj1.x < obj2.x + obj2.width && obj1.x + obj1.width > obj2.x &&
+                    obj1.y < obj2.y + obj2.height && obj1.y + obj1.height > obj2.y);
+        }
+
+        function drawTreatMessage() {
+            if (treatMessage.alpha > 0) {
+                ctx.fillStyle = `rgba(0, 0, 0, ${treatMessage.alpha})`;
+                ctx.font = '20px Arial';
+                ctx.fillText(treatMessage.text, canvas.width / 2 - 50, canvas.height / 2);
+                treatMessage.timer--;
+                if (treatMessage.timer <= 0) treatMessage.alpha -= 0.05;
+            }
         }
 
         function update() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            dino.dy += dino.gravity;
-            dino.y += dino.dy;
-            if (dino.y >= 300) { dino.y = 300; dino.dy = 0; dino.isJumping = false; }
+            dog.dy += dog.gravity;
+            dog.y += dog.dy;
+            if (dog.y >= 300) { dog.y = 300; dog.dy = 0; dog.isJumping = false; }
 
-            if (frame % 10 === 0 && !dino.isJumping) currentFrame = (currentFrame + 1) % 2;
-            ctx.fillStyle = '#000';
-            ctx.fillRect(dino.x, dino.y, dinoFrames[currentFrame].width, dinoFrames[currentFrame].height);
+            drawDog(dog.x, dog.y, dog.isJumping);
 
             ctx.fillStyle = '#666';
             ground.x -= ground.speed;
@@ -62,23 +127,40 @@
             obstacles.forEach((obstacle, index) => {
                 obstacle.update();
                 obstacle.draw();
-                if (checkCollision(dino, obstacle)) {
-                    alert(`Game Over! Score: ${score}`);
+                if (checkCollision(dog, obstacle)) {
+                    alert(`Game Over! Treats Collected: ${treatCount}`);
                     obstacles = [];
-                    score = 0;
+                    treats = [];
+                    treatCount = 0;
                     gameSpeed = 5;
+                    treatMessage.alpha = 0;
+                    obstacleCooldown = 0;
                     return;
                 }
-                if (obstacle.x + obstacle.width < 0) {
-                    obstacles.splice(index, 1);
-                    score++;
-                    if (score % 10 === 0) gameSpeed += 0.5;
+                if (obstacle.x + obstacle.width < 0) obstacles.splice(index, 1);
+            });
+
+            spawnTreat();
+            treats.forEach((treat, index) => {
+                treat.update();
+                treat.draw();
+                if (checkCollision(dog, treat)) {
+                    treats.splice(index, 1);
+                    treatCount++;
+                    gameSpeed += 0.5;
+                    treatMessage.text = `Treats Collected: ${treatCount}`;
+                    treatMessage.alpha = 1;
+                    treatMessage.timer = 30;
+                } else if (treat.x + treat.width < 0) {
+                    treats.splice(index, 1);
                 }
             });
 
             ctx.fillStyle = '#000';
             ctx.font = '20px Arial';
-            ctx.fillText(`Score: ${score}`, 10, 30);
+            ctx.fillText(`Treats: ${treatCount}`, 10, 30);
+
+            drawTreatMessage();
 
             frame++;
             requestAnimationFrame(update);
