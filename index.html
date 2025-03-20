@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dog Treat Game - Touch Enabled</title>
+    <title>Dog Treat Game - Grounded</title>
     <style>
         body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f7f7f7; }
         #gameCanvas { border: 1px solid #000; background: #fff; }
@@ -15,7 +15,7 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        let dog = { x: 50, y: 300, width: 40, height: 40, dy: 0, gravity: 0.8, jumpPower: -18, isJumping: false }; // Boosted jumpPower
+        let dog = { x: 50, y: 300, width: 40, height: 40, dy: 0, gravity: 0.6, jumpPower: -12, isJumping: false }; // Toned-down jump
         let obstacles = [];
         let treats = [];
         let ground = { x: 0, y: 340, width: canvas.width * 2, height: 10, speed: 5 };
@@ -24,22 +24,40 @@
         let treatMessage = { text: '', alpha: 0, timer: 0 };
         let obstacleCooldown = 0;
 
-        // Draw Dog
+        // Draw Dog with more detail
         function drawDog(x, y, jumping) {
             ctx.fillStyle = '#000';
             ctx.beginPath();
-            ctx.fillRect(x + 10, y + 15, 20, 15); // Body
-            ctx.fillRect(x + 25, y + 5, 15, 10);  // Head
-            ctx.fillRect(x + 35, y, 5, 5);        // Ear
+            // Body (curved)
+            ctx.moveTo(x + 15, y + 20);
+            ctx.quadraticCurveTo(x + 20, y + 10, x + 25, y + 20);
+            ctx.lineTo(x + 35, y + 20);
+            ctx.lineTo(x + 35, y + 30);
+            ctx.lineTo(x + 15, y + 30);
+            ctx.fill();
+            // Head
+            ctx.fillRect(x + 35, y + 10, 10, 10);
+            // Snout
+            ctx.fillRect(x + 45, y + 15, 5, 5);
+            // Ear (floppy)
+            ctx.moveTo(x + 40, y + 10);
+            ctx.lineTo(x + 45, y + 5);
+            ctx.lineTo(x + 50, y + 10);
+            ctx.fill();
+            // Tail (wags)
             if (!jumping && frame % 10 === 0) legFrame = (legFrame + 1) % 2;
             if (legFrame === 0 || jumping) {
-                ctx.fillRect(x, y + 15, 10, 5);   // Tail down
-                ctx.fillRect(x + 10, y + 30, 5, 10); // Front leg
-                ctx.fillRect(x + 25, y + 30, 5, 10); // Back leg
+                ctx.fillRect(x + 5, y + 20, 10, 5); // Tail down
             } else {
-                ctx.fillRect(x, y + 10, 10, 5);   // Tail up
-                ctx.fillRect(x + 15, y + 30, 5, 10); // Front leg forward
-                ctx.fillRect(x + 20, y + 30, 5, 10); // Back leg back
+                ctx.fillRect(x + 5, y + 15, 10, 5); // Tail up
+            }
+            // Legs
+            if (legFrame === 0 || jumping) {
+                ctx.fillRect(x + 15, y + 30, 5, 10); // Front
+                ctx.fillRect(x + 30, y + 30, 5, 10); // Back
+            } else {
+                ctx.fillRect(x + 20, y + 30, 5, 10); // Front forward
+                ctx.fillRect(x + 25, y + 30, 5, 10); // Back back
             }
             ctx.closePath();
         }
@@ -54,16 +72,25 @@
         document.addEventListener('keydown', (e) => { if (e.code === 'Space') jump(); });
         canvas.addEventListener('touchstart', (e) => { e.preventDefault(); jump(); });
 
+        // Obstacle (cactus-like)
         class Obstacle {
             constructor() { this.x = canvas.width; this.y = 300; this.width = 20; this.height = 40; this.speed = gameSpeed; }
-            draw() { ctx.fillStyle = '#000'; ctx.fillRect(this.x, this.y, this.width, this.height); }
+            draw() {
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.fillRect(this.x + 5, thiscity + 5, 10, 35); // Main stem
+                ctx.fillRect(this.x, this.y + 20, 5, 10);       // Left arm
+                ctx.fillRect(this.x + 15, this.y + 15, 5, 10); // Right arm
+                ctx.closePath();
+            }
             update() { this.x -= this.speed; }
         }
 
+        // Treat (grounded drumstick)
         class Treat {
             constructor() {
                 this.x = canvas.width + Math.random() * 200;
-                this.y = 260;
+                this.y = 320; // On ground
                 this.width = 20;
                 this.height = 20;
                 this.speed = gameSpeed;
@@ -108,8 +135,16 @@
             }
         }
 
+        // Draw Background (horizon line like Chrome)
+        function drawBackground() {
+            ctx.fillStyle = '#999';
+            ctx.fillRect(0, 200, canvas.width, 1); // Horizon
+        }
+
         function update() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            drawBackground();
 
             dog.dy += dog.gravity;
             dog.y += dog.dy;
